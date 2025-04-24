@@ -88,7 +88,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
     <button type="submit" class="btn btn-primary w-100">Login</button>
   </form>
-  <div class="">Admin email is gpcorser@svsu.edu <br> Non-admin email is dcschram@svsu.edu <br> Password for both is SecretLogin321</div>
 </div>
 
 </body>
