@@ -1,86 +1,95 @@
 <?php
 session_start();
-require '../database/database.php'; // Include database connection
-$pdo = Database::connect();
+require './database/database.php';
 
+// Login error message placeholder
 $error = '';
 
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $email = trim($_POST['email']);
-    $password = trim($_POST['password']);
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+  // Pull email and password from user login
+  $email = $_POST['email'] ?? '';
+  $password = $_POST['password'] ?? '';
 
-    if (!empty($email) && !empty($password)) {
-        try {
-            // Prepare SQL statement
-            $stmt = $pdo->prepare("SELECT id, fname, lname, pwd_hash, pwd_salt FROM iss_persons WHERE email = :email");
-            $stmt->bindParam(':email', $email, PDO::PARAM_STR);
-            $stmt->execute();
-            
-            if ($stmt->rowCount() == 1) {
-                $user = $stmt->fetch(PDO::FETCH_ASSOC);
-
-                // Extract values
-                $id = $user['id'];
-                $fname = $user['fname'];
-                $lname = $user['lname'];
-                $stored_hash = $user['pwd_hash'];
-                $stored_salt = $user['pwd_salt'];
-
-                
-                // Hash the input password with the stored salt
-                $hashed_input_pwd = md5($password . $stored_salt);
-
-                
-                if ($hashed_input_pwd === $stored_hash) {
-                    // Authentication successful, set session variables
-                    $_SESSION['user_id'] = $id;
-                    $_SESSION['user_name'] = $fname . ' ' . $lname;
-                    $_SESSION['email'] = $email;
-
-                    // Close connection
-                    Database::disconnect();
-
-                    header("Location: issues_list.php");
-                    exit();
-                } else {
-                    $error = "Invalid email or password.";
-                }
-            } else {
-                $error = "Invalid email or password.";
-            }
-        } catch (PDOException $e) {
-            $error = "Database error: " . $e->getMessage();
+    try {
+      // Use app credentials to connect (not user's)
+      $pdo = DB::connect();
+  
+      // Lookup user by email
+      $stmt = $pdo->prepare("SELECT id, fname, pwd_hash, pwd_salt, admin FROM iss_persons WHERE email = ?");
+      $stmt->execute([$email]);
+      $user = $stmt->fetch(PDO::FETCH_ASSOC);
+  
+      // If there is a user
+      if ($user) {
+        // Check login with password and salt
+        $salt = $user['pwd_salt'];
+        $hashedInput = hash('sha256', $salt . $password);
+  
+        // If login successful
+        if (hash_equals($user['pwd_hash'], $hashedInput)) {
+          // Set session and redirect to index.php
+          $_SESSION['logged_in'] = true;
+          $_SESSION['user_id'] = $user['id'];
+          $_SESSION['user_name'] = $user['fname'];
+          $_SESSION['is_admin'] = (bool)$user['admin'];
+          header("Location: index.php");
+          exit();
         }
-    } else {
-        $error = "Please enter both email and password.";
+      }
+  
+      // Authentification failed
+      $error = "Invalid email or password.";
+  
+    } catch (PDOException $e) {
+      $error = "Database error: " . $e->getMessage();
     }
 }
-
-// Close database connection
-Database::disconnect();
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - ISS</title>
+  <meta charset="UTF-8">
+  <title>Login - Hot Issues Tracker</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      background-color: #f8f9fa;
+      display: flex;
+      height: 100vh;
+      align-items: center;
+      justify-content: center;
+    }
+    .login-card {
+      padding: 2rem;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 400px;
+    }
+  </style>
 </head>
 <body>
-    <h2>Issue Tracking System - Login</h2>
-    <?php if ($error): ?>
-        <p style="color: red;"><?php echo htmlspecialchars($error); ?></p>
-    <?php endif; ?>
-    
-    <form method="POST" action="login.php">
-        <label>Email:</label>
-        <input type="email" name="email" required>
-        <br>
-        <label>Password:</label>
-        <input type="password" name="password" required>
-        <br>
-        <button type="submit">Login</button>
-    </form>
+
+<div class="login-card">
+  <h4 class="mb-4 text-center">Login to Hot Issues Tracker</h4>
+  <?php if ($error): ?>
+    <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
+  <?php endif; ?>
+  <form method="POST">
+    <div class="mb-3">
+      <label for="email" class="form-label">Email address</label>
+      <input type="email" name="email" class="form-control" id="email" required>
+    </div>
+    <div class="mb-3">
+      <label for="password" class="form-label">Password</label>
+      <input type="password" name="password" class="form-control" id="password" required>
+    </div>
+    <button type="submit" class="btn btn-primary w-100">Login</button>
+  </form>
+  <div class="">Admin email is gpcorser@svsu.edu <br> Non-admin email is dcschram@svsu.edu <br> Password for both is SecretLogin321</div>
+</div>
+
 </body>
 </html>
