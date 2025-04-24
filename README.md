@@ -1,2 +1,2 @@
 # app355
-Not much original work here, but the repository exists and has contents
+Project is (probably) complete now! I was worried I wouldn't be able to finish before it was too late, but I got it finished the thursday before the extension period was over!
